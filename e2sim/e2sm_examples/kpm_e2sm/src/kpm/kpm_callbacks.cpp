@@ -201,7 +201,7 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 			json::json_pointer p001(std::string("/ueMeasReport/ueMeasReportList/") + std::to_string(i) +"/ue-id");
 			ueId = all_ues_json[p001].get<std::string>();
 
-			LOG_I("Preparing report data for UE %d with id %s", i, ueId);
+			LOG_I("Preparing report data for UE %d with id %s", i, ueId.c_str());
 			
 			json::json_pointer p0(std::string("/ueMeasReport/ueMeasReportList/") + std::to_string(i) +"/throughput");
 			tput = all_ues_json[p0].get<float>();
