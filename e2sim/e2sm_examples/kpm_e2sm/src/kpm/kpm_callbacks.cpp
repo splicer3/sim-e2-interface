@@ -445,7 +445,7 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 			
 			e2sim.encode_and_send_sctp_data(pdu_cucp_ue);
 			LOG_I("Measurement report for UE %d has been sent", i);
-			seqNum++;
+			seqNum = (seqNum % 65535) + 1;
 			std::this_thread::sleep_for(send_gap_sleep);
 		}
       } else if (first_key.compare("cellMeasReport") == 0) {
