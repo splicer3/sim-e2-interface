@@ -581,7 +581,7 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 											e2sm_message_buf_style1, er_message_style1.encoded);
 
 			e2sim.encode_and_send_sctp_data(pdu_style1);
-			seqNum++;
+			seqNum = (seqNum % 65535) + 1;
 			LOG_I("Measurement report for Cell %d has been sent\n", i);
 			std::this_thread::sleep_for(send_gap_sleep);
 			
