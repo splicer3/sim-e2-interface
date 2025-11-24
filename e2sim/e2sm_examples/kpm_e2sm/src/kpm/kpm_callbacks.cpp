@@ -135,23 +135,52 @@ void get_cell_id(uint8_t *nrcellid_buf, char *cid_return_buf) {
 
 void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long actionId)
 {
-  std::filebuf reports_json;
-  std::streambuf *input_filebuf = &reports_json;
+	std::filebuf reports_json;
+	std::streambuf *input_filebuf = nullptr;
 
-  std::unique_ptr<viavi::RICTesterReceiver> viavi_connector;
-  if (!reports_json.open("/playpen/src/reports.json", std::ios::in)) {
-    std::cerr << "Can't open reports.json, enabling VIAVI connector instead..." << endl;
+	std::unique_ptr<viavi::RICTesterReceiver> viavi_connector;
+		bool using_reports_file = reports_json.open("/playpen/src/reports.json", std::ios::in) != nullptr;
+	if (using_reports_file) {
+		input_filebuf = &reports_json;
+	} else {
+		std::cerr << "Can't open reports.json, enabling VIAVI connector instead..." << endl;
 	viavi_connector.reset(new viavi::RICTesterReceiver {3001, nullptr});
 	input_filebuf = viavi_connector->get_data_filebuf();
-  }
+	}
 
-  std::istream input {input_filebuf};
+	if (input_filebuf == nullptr) {
+		LOG_E("Unable to initialize measurement input source");
+		return;
+	}
+
+	std::istream input {input_filebuf};
 
   long seqNum = 1;
 
-  std::string str;
+	std::string str;
   
-  while ( getline(input, str) ) {
+	while (true) {
+
+		if (!std::getline(input, str)) {
+			if (using_reports_file) {
+				input.clear();
+				if (reports_json.pubseekpos(0, std::ios_base::in) == std::streampos(-1)) {
+					LOG_E("Failed to rewind reports.json; sleeping before retry");
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				} else {
+					LOG_I("Reached end of reports.json, restarting from beginning to simulate continuous traffic");
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				}
+				continue;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			continue;
+		}
+
+		if (str.empty()) {
+			continue;
+		}
 
     json all_ues_json;
 
