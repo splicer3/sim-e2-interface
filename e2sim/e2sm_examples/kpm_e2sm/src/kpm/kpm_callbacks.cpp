@@ -60,6 +60,27 @@ int gFuncId;
 
 E2Sim e2sim;
 
+// Helper inside anonymous namespace so that it is not visible outside
+namespace {
+
+long get_env_duration_ms(const char* name, long default_ms) {
+	const char* raw_value = std::getenv(name);
+	if (raw_value == nullptr || *raw_value == '\0') {
+		return default_ms;
+	}
+
+	char* endptr = nullptr;
+	long parsed = std::strtol(raw_value, &endptr, 10);
+	if (endptr == raw_value || parsed < 0) {
+		LOG_E("Invalid value '%s' for %s; falling back to default %ld ms", raw_value, name, default_ms);
+		return default_ms;
+	}
+
+	return parsed;
+}
+
+}
+
 int main(int argc, char* argv[]) {
 
   LOG_I("Starting KPM simulator");
@@ -157,6 +178,15 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 
   long seqNum = 1;
 
+	const auto rewind_fail_sleep = std::chrono::milliseconds(
+		get_env_duration_ms("REPORTS_REWIND_FAIL_SLEEP_MS", 1000));
+	const auto rewind_restart_sleep = std::chrono::milliseconds(
+		get_env_duration_ms("REPORTS_RESTART_SLEEP_MS", 50));
+	const auto stream_wait_sleep = std::chrono::milliseconds(
+		get_env_duration_ms("REPORTS_STREAM_WAIT_MS", 100));
+	const auto send_gap_sleep = std::chrono::milliseconds(
+		get_env_duration_ms("REPORTS_SEND_GAP_MS", 50));
+
 	std::string str;
   
 	while (true) {
@@ -166,15 +196,15 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 				input.clear();
 				if (reports_json.pubseekpos(0, std::ios_base::in) == std::streampos(-1)) {
 					LOG_E("Failed to rewind reports.json; sleeping before retry");
-					std::this_thread::sleep_for(std::chrono::seconds(1));
+					std::this_thread::sleep_for(rewind_fail_sleep);
 				} else {
 					LOG_I("Reached end of reports.json, restarting from beginning to simulate continuous traffic");
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					std::this_thread::sleep_for(rewind_restart_sleep);
 				}
 				continue;
 			}
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::sleep_for(stream_wait_sleep);
 			continue;
 		}
 
@@ -416,7 +446,7 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 			e2sim.encode_and_send_sctp_data(pdu_cucp_ue);
 			LOG_I("Measurement report for UE %d has been sent", i);
 			seqNum++;
-			std::this_thread::sleep_for (std::chrono::milliseconds(50));
+			std::this_thread::sleep_for(send_gap_sleep);
 		}
       } else if (first_key.compare("cellMeasReport") == 0) {
 
@@ -553,7 +583,7 @@ void run_report_loop(long requestorId, long instanceId, long ranFunctionId, long
 			e2sim.encode_and_send_sctp_data(pdu_style1);
 			seqNum++;
 			LOG_I("Measurement report for Cell %d has been sent\n", i);
-			std::this_thread::sleep_for (std::chrono::milliseconds(50));	  
+			std::this_thread::sleep_for(send_gap_sleep);
 			
 		}
 	  }					           

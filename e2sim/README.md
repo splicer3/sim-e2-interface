@@ -126,3 +126,21 @@ $ docker run <simulator-image-name>
 ``` 
 
 It will connect to specified e2t instance.
+
+## Runtime environment variables
+
+These variables can be passed to `kpm_sim` (directly or via Docker) to tune simulator behavior without rebuilding:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `RAN_FUNC_ID` | `0` | RAN Function ID registered with the simulator. Override when hosting multiple E2SM instances so each advertises a unique ID. |
+| `REPORTS_REWIND_FAIL_SLEEP_MS` | `1000` | Milliseconds to wait before retrying if `run_report_loop` fails to rewind `/playpen/src/reports.json`. |
+| `REPORTS_RESTART_SLEEP_MS` | `50` | Pause applied after successfully rewinding the reports file to simulate a seamless traffic loop. |
+| `REPORTS_STREAM_WAIT_MS` | `100` | Backoff used when the JSON file is unavailable and the VIAVI socket feed has no data yet. |
+| `REPORTS_SEND_GAP_MS` | `50` | Delay inserted between consecutive UE/cell indication messages to avoid overwhelming the RIC. |
+
+Example:
+
+```bash
+docker run -e RAN_FUNC_ID=2 -e REPORTS_SEND_GAP_MS=200 <simulator-image-name>
+```
